@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Renksel Module Fonksiyonları</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>
+        hljs.highlightAll();
+    </script>
+</head>
+
+<body class="bg-gray-900 text-white min-h-screen font-sans">
+    <div class="max-w-screen-xl mx-auto w-full">
+        <div class="bg-gray-800 rounded-xl shadow-md px-4">
+            <div class="flex items-center justify-between sticky top-0 z-50 bg-gray-800 py-4 shadow">
+                <h3 class="text-2xl font-semibold text-white border-gray-700">
+                    Renksel Module Fonksiyonları
+                </h3>
+                <a href="../index.html"
+                    class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition font-medium">
+                    Ana Sayfa
+                </a>
+            </div>
+            <div>
+                <pre class="rounded overflow-auto text-sm">
+<code id="code-block" class="language-python">
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Belirtilen renk katsayılarını kullanarak görüntünün renklerini ölçekler.
+# I: Girdi görüntüsü (üç kanallı RGB görüntü)
+# e: [kırmızı, yeşil, mavi] ölçekleme katsayıları
+def asagi_renk_esikleme(I, e=[1, 1, 1]):
+    J = I.copy()  # Girdi görüntüsünün bir kopyasını oluştur
+
+    # Her bir renk kanalına ayrı ayrı katsayı uygulama
+    J[:, :, 0] = e[0] * J[:, :, 0]  # Kırmızı kanal
+    J[:, :, 1] = e[1] * J[:, :, 1]  # Yeşil kanal
+    J[:, :, 2] = e[2] * J[:, :, 2]  # Mavi kanal
+
+    return J  # Ölçeklenmiş görüntüyü döndür
+
+
+# Belirtilen renkte (RGB değerleri) bir yapay görüntü oluşturur.
+# H: Görüntü yüksekliği, W: Görüntü genişliği, renk: [kırmızı, yeşil, mavi] değerleri (0-1 arası)
+def yapay_renkler(H=300, W=300, renk=[1, 1, 1]):
+    # H x W boyutlarında, 3 kanallı (RGB) sıfırlardan oluşan bir dizi oluştur
+    J = np.zeros((H, W, 3))
+
+    # Tüm pikselleri belirtilen renkle doldur
+    J[:, :, 0] = renk[0]  # Kırmızı kanal
+    J[:, :, 1] = renk[1]  # Yeşil kanal
+    J[:, :, 2] = renk[2]  # Mavi kanal
+
+    return J  # Oluşturulan yapay görüntüyü döndür
+
+
+# Belirtilen eşik değerleriyle görüntünün renk kanallarını değiştiren fonksiyon.
+# I: Girdi görüntüsü, esik: [kırmızı, yeşil, mavi] kanallar için eşik değerleri (eğer None değilse atanır)
+def renk_esikleme(I, esik=[None, None, None]):
+    J = I.copy()  # Girdi görüntüsünün kopyasını al
+
+    # Kırmızı kanal için eşik değeri atanmışsa o değeri kullan
+    if esik[0] is not None:
+        J[:, :, 0] = esik[0]
+    # Yeşil kanal için eşik değeri atanmışsa o değeri kullan
+    if esik[1] is not None:
+        J[:, :, 1] = esik[1]
+    # Mavi kanal için eşik değeri atanmışsa o değeri kullan
+    if esik[2] is not None:
+        J[:, :, 2] = esik[2]
+
+    return J  # Eşik değerleri uygulanmış görüntüyü döndür
+
+
+# Görüntüdeki renk kanallarının sırasını değiştiren fonksiyon.
+# I: Girdi görüntüsü, idx: yeni kanal sırası (varsayılan [0, 1, 2] = orijinal sıralama)
+def kanal_degistirme(I, idx=[0, 1, 2]):
+    J = I.copy()  # Girdi görüntüsünün bir kopyasını oluştur
+
+    # Belirtilen indeks sırasına göre her bir kanal yeniden düzenlenir.
+    J[:, :, 0] = I[:, :, idx[0]]  # Yeni kırmızı kanal
+    J[:, :, 1] = I[:, :, idx[1]]  # Yeni yeşil kanal
+    J[:, :, 2] = I[:, :, idx[2]]  # Yeni mavi kanal
+
+    return J  # Kanal sırası değiştirilmiş görüntüyü döndür
+
+
+# Soldan sağa geçişli renkli bir görüntü oluşturur.
+# H: Görüntü yüksekliği, W: Görüntü genişliği
+# C0: Sol kenarın rengi, C1: Sağ kenarın rengi (her iki değer [kırmızı, yeşil, mavi])
+def gecisli_renkler(H=300, W=300, C0=[0, 0, 0], C1=[1, 1, 1]):
+    # H x W boyutlarında, 3 kanallı sıfırlardan oluşan bir dizi oluştur
+    J = np.zeros((H, W, 3))
+
+    # Her piksel için yatay geçiş faktörü hesaplanır ve renkler interpolate edilir
+    for y in range(H):
+        for x in range(W):
+            f = x / (W - 1)  # x konumuna bağlı geçiş faktörü (0 ile 1 arasında)
+            # Her kanal için lineer interpolasyon: ilk renk ile son renk arasındaki karışım
+            J[y, x, 0] = C0[0] * (1 - f) + C1[0] * f  # Kırmızı kanal
+            J[y, x, 1] = C0[1] * (1 - f) + C1[1] * f  # Yeşil kanal
+            J[y, x, 2] = C0[2] * (1 - f) + C1[2] * f  # Mavi kanal
+
+    return J  # Geçişli renkli görüntüyü döndür
+
+
+# Görüntüye belirtilen renk farklarını ekler.
+# I: Girdi görüntüsü, C: [kırmızı, yeşil, mavi] ekleme değerleri.
+# Sonuç 0 ile 1 arasında sınırlandırılır.
+def renk_degistirme(I, C=[0, 0, 0]):
+    J = I.copy()  # Girdi görüntüsünün kopyasını oluştur
+
+    # Her kanala belirtilen farkı ekle
+    J[:, :, 0] += C[0]  # Kırmızı kanal
+    J[:, :, 1] += C[1]  # Yeşil kanal
+    J[:, :, 2] += C[2]  # Mavi kanal
+
+    return np.clip(J, 0, 1)  # Piksel değerlerini 0-1 aralığına sınırlayarak döndür
+
+
+# Görüntüyü tek bir kanal olarak döndürür.
+# I: Girdi görüntüsü, tur: Hangi kanalın veya hesaplamanın döndürüleceği
+def tek_kanal(I, tur=0):
+    if tur == 0:
+        J = I[:, :, 0]  # Kırmızı kanal
+    elif tur == 1:
+        J = I[:, :, 1]  # Yeşil kanal
+    elif tur == 2:
+        J = I[:, :, 2]  # Mavi kanal
+    elif tur == 3:
+        J = np.mean(I, axis=2)  # Kanalların ortalaması, gri ton hesaplar
+    elif tur == 4:
+        J = np.median(I, axis=2)  # Kanalların medyan değeri
+    elif tur == 5:
+        J = np.max(I, axis=2)  # Kanalların maksimum değeri
+    elif tur == 6:
+        J = np.min(I, axis=2)  # Kanalların minimum değeri
+
+    return J  # Seçilen kanal veya hesaplanmış görüntüyü döndür
+</code>
+                </pre>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

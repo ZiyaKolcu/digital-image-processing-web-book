@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biçimsel Module Fonksiyonları</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>
+        hljs.highlightAll();
+    </script>
+</head>
+
+<body class="bg-gray-900 text-white min-h-screen font-sans">
+    <div class="max-w-screen-xl mx-auto w-full">
+        <div class="bg-gray-800 rounded-xl shadow-md px-4">
+            <div class="flex items-center justify-between sticky top-0 z-50 bg-gray-800 py-4 shadow">
+                <h3 class="text-2xl font-semibold text-white border-gray-700">
+                    Biçimsel Module Fonksiyonları
+                </h3>
+                <a href="../index.html"
+                    class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition font-medium">
+                    Ana Sayfa
+                </a>
+            </div>
+            <div>
+                <pre class="rounded overflow-auto text-sm">
+<code id="code-block" class="language-python">
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Sıralı etiketleme (Connected Component Labeling) fonksiyonu
+def sirali_etiketleme(I):
+    # Girdi resminin boyutlarını al
+    H, W = I.shape
+    # Girdi resmi kopyalanarak üzerinde değişiklik yapılacak
+    J = I.copy()
+
+    etiket = 1  # Etiket numaraları 1'den başlıyor
+    liste = []  # Eşdeğer etiket çiftlerini tutan liste
+
+    # Resim üzerinde satır-satır ve sütun-sütun dolaş
+    for y in range(H):
+        for x in range(W):
+            # Eğer piksel değeri 1 ise (ilk ön işlem sonrası nesne bölgesi olarak kabul)
+            if J[y, x] == 1:
+                # İlgili komşu pikselleri (üst sol, üst, üst sağ ve sol) t listesine ekle
+                t = [J[y - 1, x - 1], J[y - 1, x], J[y - 1, x + 1], J[y, x - 1]]
+                # Eğer komşulardan hiçbiri etiketlenmemişse (yani tümü sıfırsa)
+                if not np.any(t):
+                    etiket += 1  # Yeni bir etiket oluştur
+                    J[y, x] = etiket  # Piksele yeni etiketi ata
+                else:
+                    # Komşu listesinde sıfır varsa kaldır (etiketlenmemiş pikseller)
+                    while 0 in t:
+                        t.remove(0)
+                    # Komşuların en küçük etiketini ata
+                    J[y, x] = np.min(t)
+                    # Eğer komşular arasında farklı etiketler varsa, eşdeğer etiketleri listeye ekle
+                    if np.min(t) != np.max(t):
+                        if [np.min(t), np.max(t)] not in liste:
+                            liste.append([np.min(t), np.max(t)])
+
+    # Eşdeğer etiketler arasında son düzenlemeyi yap (ikinci geçiş)
+    for y in range(H):
+        for x in range(W):
+            for i in range(len(liste)):
+                # Eğer piksel, liste içindeki maksimum etiket değerine eşitse, onu minimum ile değiştir.
+                if J[y, x] == liste[i][1]:
+                    J[y, x] = liste[i][0]
+
+    return J
+
+
+# Yayılmalı etiketleme (BFS benzeri bölge yayılımı ile etiketleme) fonksiyonu
+def yayilmali_etiketleme(I):
+    H, W = I.shape
+    J = I.copy()
+    etiket = 1
+
+    # Resim üzerinde satır-satır ve sütun-sütun dolaş
+    for y in range(H):
+        for x in range(W):
+            # Eğer piksel değeri 1 ise, henüz etiketlenmemiş nesne alanı olarak kabul edilir
+            if J[y, x] == 1:
+                etiket += 1  # Yeni bir etiket oluştur
+                liste = []
+                liste.append([y, x])  # Başlangıç pikselini listeye ekle
+                J[y, x] = etiket  # Piksele yeni etiketi ata
+
+                # Kuyruk boşalana kadar etiket yayılımı yap (BFS)
+                while len(liste) > 0:
+                    ata = liste.pop(0)  # Kuyruğun ilk elemanını al
+                    Y = ata[0]
+                    X = ata[1]
+
+                    # Yukarıdaki komşu kontrolü (sınır kontrolü yapılıyor)
+                    if Y - 1 >= 0:
+                        if J[Y - 1, X] == 1:
+                            liste.append([Y - 1, X])
+                            J[Y - 1, X] = etiket
+
+                    # Aşağıdaki komşu kontrolü
+                    if Y + 1 < H:
+                        if J[Y + 1, X] == 1:
+                            liste.append([Y + 1, X])
+                            J[Y + 1, X] = etiket
+
+                    # Solundaki komşu kontrolü
+                    if X - 1 >= 0:
+                        if J[Y, X - 1] == 1:
+                            liste.append([Y, X - 1])
+                            J[Y, X - 1] = etiket
+
+                    # Sağındaki komşu kontrolü
+                    if X + 1 < W:
+                        if J[Y, X + 1] == 1:
+                            liste.append([Y, X + 1])
+                            J[Y, X + 1] = etiket
+
+    return J
+
+
+# Sınır bulma (Boundary Extraction) fonksiyonu
+def sinir_bulma(I):
+    H, W = I.shape
+    J = I.copy()
+
+    # Resimdeki her piksel kontrol ediliyor
+    for y in range(H):
+        for x in range(W):
+            # Piksel değeri 1 ise (nesne bölgesi)
+            if I[y, x] == 1:
+                b = True  # Başlangıçta pikselin çevresi tamamen dolu kabul edilir
+
+                # Yukarı komşuyu kontrol et (sınır kontrolü)
+                if y > 0:
+                    if I[y - 1, x] == 0:
+                        b = False
+
+                # Aşağı komşuyu kontrol et
+                if y < H - 1:
+                    if I[y + 1, x] == 0:
+                        b = False
+
+                # Sol komşuyu kontrol et
+                if x > 0:
+                    if I[y, x - 1] == 0:
+                        b = False
+
+                # Sağ komşuyu kontrol et
+                if x < W - 1:
+                    if I[y, x + 1] == 0:
+                        b = False
+
+                # Eğer tüm komşular 1 ise, iç bölgeye ait olarak kabul edilir ve sıfır yapılır (sadece sınır pikseller 1 kalır)
+                if b:
+                    J[y, x] = 0
+
+    return J
+
+
+# Aşınma (Erosion) işlemi: Nesnenin sınırındaki pikselleri kaldırır ve sadece tam olarak çevresi dolu olanları tutar
+def asinma(I):
+    H, W = I.shape
+    J = I.copy()
+
+    # Resim üzerindeki her piksel için kontrol yap
+    for y in range(H):
+        for x in range(W):
+            # Piksel nesne bölgesine aitse (1 ise)
+            if I[y, x] == 1:
+                b = True  # Başlangıç varsayımı: pikselin tüm komşuları dolu
+                # Üst, alt, sol, sağ komşuları kontrol et
+                if y > 0:
+                    if I[y - 1, x] == 0:
+                        b = False
+                if y < H - 1:
+                    if I[y + 1, x] == 0:
+                        b = False
+                if x > 0:
+                    if I[y, x - 1] == 0:
+                        b = False
+                if x < W - 1:
+                    if I[y, x + 1] == 0:
+                        b = False
+
+                # Komşulardan herhangi biri 0 ise, piksel kenar olarak kabul edilir ve kaldırılır
+                if not b:
+                    J[y, x] = 0
+
+    return J
+
+
+# Tasma (Dilation) işlemi: Nesnenin çevresinde bulunan arka plan (0) piksellerini, nesne pikselleriyle doldurur
+def tasma(I):
+    H, W = I.shape
+    J = I.copy()
+
+    # Resimdeki her piksel için kontrol yap
+    for y in range(H):
+        for x in range(W):
+            # Arka plan pikseli ise (0)
+            if I[y, x] == 0:
+                b = True  # Başlangıç varsayımı: etrafındaki tüm pikseller arka plan
+                # Üst komşuyu kontrol et
+                if y > 0:
+                    if I[y - 1, x] == 1:
+                        b = False
+                # Alt komşuyu kontrol et
+                if y < H - 1:
+                    if I[y + 1, x] == 1:
+                        b = False
+                # Sol komşuyu kontrol et
+                if x > 0:
+                    if I[y, x - 1] == 1:
+                        b = False
+                # Sağ komşuyu kontrol et
+                if x < W - 1:
+                    if I[y, x + 1] == 1:
+                        b = False
+
+                # Etrafında en az bir nesne pikselli alan varsa, bu arka plan pikselini nesneye çevir
+                if not b:
+                    J[y, x] = 1
+
+    return J
+
+
+# Açma (Opening) işlemi: Erosion sonrası dilation işlemiyle gürültüyü azaltır
+def acma(I):
+    J = asinma(I)  # Önce aşınma (erosion) yap
+    J = tasma(J)   # Sonrasında tasma (dilation) işlemi uygula
+    return J
+
+
+# Kapama (Closing) işlemi: Dilation sonrası erosion işlemiyle delikleri kapatır
+def kapama(I):
+    J = tasma(I)   # Önce tasma (dilation) yap
+    J = asinma(J)  # Sonrasında aşınma (erosion) uygula
+    return J
+    
+                    </code>
+                </pre>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

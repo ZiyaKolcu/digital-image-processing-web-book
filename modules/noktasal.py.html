@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Noktasal Module Fonksiyonları</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>
+        hljs.highlightAll();
+    </script>
+</head>
+
+<body class="bg-gray-900 text-white min-h-screen font-sans">
+    <div class="max-w-screen-xl mx-auto w-full">
+        <div class="bg-gray-800 rounded-xl shadow-md px-4">
+            <div class="flex items-center justify-between sticky top-0 z-50 bg-gray-800 py-4 shadow">
+                <h3 class="text-2xl font-semibold text-white border-gray-700">
+                    Noktasal Module Fonksiyonları
+                </h3>
+                <a href="../index.html"
+                    class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition font-medium">
+                    Ana Sayfa
+                </a>
+            </div> 
+            <div>
+                <pre class="rounded overflow-auto text-sm">
+<code id="code-block" class="language-python">
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Görüntünün parlaklığını artırır veya azaltır.
+# I: Girdi görüntüsü, b: eklemek istenen parlaklık değeri.
+def parlaklik(I, b=0.0):
+    J = I.copy()      # Girdi görüntüsünü kopyala
+    J += b            # Tüm piksellere b değerini ekle
+    # Piksel değerlerini 0 ile 1 arasında sınırlayarak döndür
+    return np.clip(J, 0, 1)
+
+
+# Görüntünün ayrımlılığını (kontrastını) değiştirir.
+# I: Girdi görüntüsü, a: kontrast ölçekleme katsayısı.
+def ayrimlilik(I, a=0.5):
+    J = I.copy()      # Görüntüyü kopyala
+    J *= a            # Tüm pikselleri a katsayısı ile çarp (ölçekle)
+    # Sonuç değerlerini 0 ile 1 arasında sınırla
+    return np.clip(J, 0, 1)
+
+
+# Görüntüyü gri tonlamaya çevirir.
+# Renk kanallarının ortalaması alınarak her kanala eşit değer atanır.
+def gray_scale(I):
+    M = np.mean(I, axis=2)  # Üç renk kanalının ortalamasını al (gri değer)
+    J = I.copy()            # Girdi görüntüsünü kopyala
+    J[:, :, 0] = M          # Tüm kanallara ortalama değeri ata
+    J[:, :, 1] = M
+    J[:, :, 2] = M
+    return J
+
+
+# Görüntünün yoğunluğunu, verilen dönüşüm tablosu (LUT) kullanarak değiştirir.
+# I: Girdi görüntüsü, LUT: 256 elemanlı dönüşüm tablosu.
+def yogunluk_donusumu(I, LUT):
+    # Piksel değerlerini 0-255 ölçeğine çevirip LUT'dan karşılık gelen değeri al.
+    J = LUT[np.int32(I * 255)]
+    return J
+
+
+# Farklı yoğunluk dönüşümleri için Look-Up Table (LUT) oluşturur.
+# tur: dönüşüm tipi, a ve b: parlaklık/kontrast ayarları, gamma: gamma düzeltme parametresi,
+# esik: eşik değeri, k: basamaklama veya bit işlemleri için parametre.
+def lut(tur=0, a=1, b=0, gamma=1, esik=0.5, k=4):
+    LUT = np.zeros(256)
+
+    if tur == 0:  # Etkisiz dönüşüm: Girdi değeri aynen çıktı olarak verilir.
+        for i in range(256):
+            LUT[i] = i / 255
+
+    elif tur == 1:  # Tersleme (negatif görüntü): Piksel değeri 1'den çıkarılır.
+        for i in range(256):
+            LUT[i] = 1 - i / 255
+
+    elif tur == 2:  # Parlaklık ve ayrımlılığın ayarlanması.
+        for i in range(256):
+            LUT[i] = a * (i / 255 - 0.5) + 0.5 + b
+
+    elif tur == 3:  # Gamma düzeltme: Piksel değerleri gamma eğrisine göre ayarlanır.
+        for i in range(256):
+            LUT[i] = (i / 255) ** (1 / gamma)
+
+    elif tur == 4:  # Eşikleme: Belirtilen eşik değerinin altındakiler 0, üstündekiler 1 olur.
+        for i in range(256):
+            LUT[i] = 0 if (i / 255) <= esik else 1
+
+    elif tur == 5:  # Basamaklama (quantization): Piksel değerleri belirli basamaklara ayrılır.
+        for i in range(256):
+            LUT[i] = int(k * (i - 1) / 255) / (k - 1)
+
+    elif tur == 6:  # Çukur fonksiyonu: Ortadaki değer daha düşük, uçlara doğru artan bir dönüşüm.
+        for i in range(256):
+            LUT[i] = (2 * i / 255 - 1) ** 2
+
+    elif tur == 7:  # Tepe fonksiyonu: Uç değerler azaltılır, tepe noktasında yükselme.
+        for i in range(256):
+            LUT[i] = 1 - (2.0 * i / 255 - 1) ** 0.5
+
+    elif tur == 8:  # VE işlemi: Piksel değeri ve k parametresiyle bit düzeyinde AND işlemi yapılır.
+        for i in range(256):
+            LUT[i] = k * (np.uint16(i) & k)
+
+    # LUT elemanlarını 0 ile 1 arasında sınırla ve döndür
+    return np.clip(LUT, 0, 1)
+
+
+# Görüntüye eşikleme işlemi uygular.
+# Belirtilen eşik değerine göre piksel değerleri LUT kullanılarak 0 veya 1 yapılır.
+def esikleme(I, esik=0.5):
+    LUT = lut(4, esik=esik)  # Eşikleme tipi için LUT oluştur
+    return yogunluk_donusumu(I, LUT)
+
+
+# Görüntüyü belirli basamaklara ayırır (quantization).
+# k: basamak sayısı.
+def basamaklama(I, k=4):
+    LUT = lut(5, k=k)  # Basamaklama tipi için LUT oluştur
+    return yogunluk_donusumu(I, LUT)
+
+
+# Görüntünün öz ayrımlılığını (contrast) artırır.
+# Görüntünün minimum ve maksimum değerlerine göre normalize etme işlemi.
+def oz_ayrimlilik(I):
+    fark = np.max(I) - np.min(I)    # Görüntüdeki maksimum farkı hesapla
+    J = (I - np.min(I)) / fark      # Görüntüyü normalize et (0-1 arası)
+    return J
+
+
+# Görüntünün ayrımlılığını (kontrast) belirli bir aralıkta denetimli şekilde ayarlar.
+# Imin: giriş minimum, Imax: giriş maksimum.
+def denetimli_ayrimlilik(I, Imin=0, Imax=1):
+    fark = Imax - Imin              # Giriş aralığının farkı
+    J = (I - Imin) / fark           # Normalizasyon işlemi
+    return np.clip(J, 0, 1)         # Sonucu 0 ile 1 arasında sınırlayarak döndür
+
+
+# Görüntünün ayrımlılığını (kontrast) belirli giriş ve çıkış aralıklarına göre ayarlar.
+# Imin, Imax: giriş aralığı; Jmin, Jmax: istenen çıkış aralığı.
+def ayarlanmis_ayrimlilik(I, Imin, Imax, Jmin, Jmax):
+    J = (I - Imin) / (Imax - Imin) * (Jmax - Jmin) + Jmin
+    return np.clip(J, 0, 1)
+
+
+# Görüntünün histogramını hesaplar.
+# tur: hesaplama yapılacak renk kanalı (0: kırmızı, 1: yeşil, 2: mavi, 3: tüm kanallar).
+def histogram(I, tur=0):
+    H, W, C = I.shape
+    h = np.zeros(256)               # Histogramı tutacak dizi (0-255 arası)
+    J = np.uint8(I * 255)           # Görüntüdeki piksel değerlerini 0-255 aralığına çevir
+
+    # Belirtilen kanala göre histogram sayımı yap
+    if tur == 0:  # Kırmızı kanal
+        for y in range(H):
+            for x in range(W):
+                j = J[y, x, 0]
+                h[j] += 1
+    elif tur == 1:  # Yeşil kanal
+        for y in range(H):
+            for x in range(W):
+                j = J[y, x, 1]
+                h[j] += 1
+    elif tur == 2:  # Mavi kanal
+        for y in range(H):
+            for x in range(W):
+                j = J[y, x, 2]
+                h[j] += 1
+    elif tur == 3:  # Tüm kanallardan histogram
+        for y in range(H):
+            for x in range(W):
+                for c in range(C):
+                    j = J[y, x, c]
+                    h[j] += 1
+
+    return h
+
+
+# Kümülatif toplam (cumulative sum) hesaplar.
+# x: giriş vektörü (örneğin histogram verisi)
+def cumsum(x):
+    n = x.size
+    F = np.zeros(n)
+    F[0] = x[0]
+    # Her bir değeri, önceki toplam ile ekleyerek kümülatif toplamı oluştur
+    for i in range(1, n):
+        F[i] = F[i - 1] + x[i]
+    return F
+
+
+# Görüntüde histogram eşitleme işlemi uygular.
+def histogram_esitleme(I):
+    f = histogram(I, tur=3)         # Tüm kanallardan histogramı al
+    p = f / np.sum(f)               # Histogramı normalize et (olasılık dağılımı)
+    F = cumsum(p)                   # Kümülatif dağılım fonksiyonunu hesapla
+    # Girdi görüntüsündeki değerleri, kümülatif dağılım fonksiyonuna göre değiştir
+    J = F[np.uint8(I * 255)]
+    return np.clip(J, 0, 1)
+
+
+# Görüntüye gürültü ekler.
+# p: eklenen gürültünün yüzde oranı.
+def gurultu_ekle(I, p=10):
+    H, W, C = I.shape
+    # Eklenmesi gereken gürültü piksel sayısını hesapla
+    K = int(p / 100 * H * W)
+    J = I.copy()
+    # Rastgele konumlarda beyaz noktalar ekle
+    for i in range(K):
+        y = np.random.randint(H)
+        x = np.random.randint(W)
+        J[y, x, :] = 1  # Her kanalda beyaz (maksimum) değer ata
+    return J
+                            
+                    </code>
+                </pre>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

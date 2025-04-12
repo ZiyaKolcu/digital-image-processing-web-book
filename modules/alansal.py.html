@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alansal Module Fonksiyonları</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>
+        hljs.highlightAll();
+    </script>
+</head>
+
+<body class="bg-gray-900 text-white min-h-screen font-sans">
+    <div class="max-w-screen-xl mx-auto w-full">
+        <div class="bg-gray-800 rounded-xl shadow-md px-4">
+            <div class="flex items-center justify-between sticky top-0 z-50 bg-gray-800 py-4 shadow">
+                <h3 class="text-2xl font-semibold text-white border-gray-700">
+                    Alansal Module Fonksiyonları
+                </h3>
+                <a href="../index.html"
+                    class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition font-medium">
+                    Ana Sayfa
+                </a>
+            </div>
+            <pre class="rounded overflow-auto text-sm">
+<code id="code-block" class="language-python">
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Görüntüye evrişim filtresi uygular.
+# Evrişim işlemi, görüntüdeki belirli bölgeleri işlemek (keskinleştirme, bulanıklaştırma, kenar belirleme vb.)
+# amacıyla çekirdek (kernel) matrisinin görüntü üzerinde kaydırılarak her piksele uygulanmasıdır.
+# I: Girdi görüntüsü (H x W x C), h: Evrişim çekirdeği, a: Sınır durumlarında kullanılacak varsayılan değer.
+def evrisim(I, h, a=0.5):
+    M, _ = h.shape              # Çekirdeğin boyutunu al (M x M varsayılır)
+    m = (M - 1) // 2            # Çekirdek yarıçapını hesapla
+    H, W, C = I.shape           # Girdi görüntüsünün boyutları (yükseklik, genişlik, kanal sayısı)
+    J = np.zeros(I.shape)       # Sonuç görüntüsü için aynı boyutta sıfırlardan oluşan dizi oluştur
+    
+    # Her piksel, her kanal için evrişim işlemi uygulanır
+    for y in range(H):
+        for x in range(W):
+            for c in range(C):
+                # Çekirdek matrisinin her öğesi için
+                for i in range(-m, m + 1):
+                    for j in range(-m, m + 1):
+                        # Geçerli çekirdek elemanının, görüntü sınırları içinde olmasını kontrol et
+                        if 0 <= y - i < H and 0 <= x - j < W:
+                            # Piksel değeri ve çekirdek değeri çarpılarak toplam sonuca eklenir
+                            J[y, x, c] += I[y - i, x - j, c] * h[i + m, j + m]
+                        else:
+                            # Eğer çekirdek görüntü sınırları dışında ise, belirtilen a değeri ile çekirdek değeri kullanılır
+                            J[y, x, c] = a * h[i + m, j + m]
+    
+    # Piksel değerlerini 0 ile 1 arasında sınırlayarak sonucu döndür
+    return np.clip(J, 0, 1)
+
+
+# Kenar algılama işlemi için farklı operatörler (Sobel, Roberts, Prewitt) kullanır.
+# tur parametresi seçilen operatörü belirler.
+def kenar_algilama(I, tur=0):
+    if tur == 0:  # Sobel operatörü
+        hx = np.array(
+            [
+                [-1, 0, 1],
+                [-2, 0, 2],
+                [-1, 0, 1],
+            ]
+        )
+        hy = np.array(
+            [
+                [-1, -2, -1],
+                [0, 0, 0],
+                [1, 2, 1],
+            ]
+        )
+    elif tur == 1:  # Roberts operatörü
+        hx = np.array(
+            [
+                [0, 0, 0],
+                [0, 1, 0],
+                [0, 0, -1],
+            ]
+        )
+        hy = np.array(
+            [
+                [0, 0, -1],
+                [0, 1, 0],
+                [0, 0, 0],
+            ]
+        )
+    elif tur == 2:  # Prewitt operatörü
+        hx = np.array(
+            [
+                [1, 0, -1],
+                [1, 0, -1],
+                [1, 0, -1],
+            ]
+        )
+        hy = np.array(
+            [
+                [1, 1, 1],
+                [0, 0, 0],
+                [-1, -1, -1],
+            ]
+        )
+    
+    # x ve y yönündeki gradyanları hesaplamak için evrişim kullanılır
+    Ix = evrisim(I, hx)
+    Iy = evrisim(I, hy)
+    
+    # Kenarların şiddeti, x ve y gradyanlarının karelerinin toplamının kareköküyle hesaplanır
+    J = np.sqrt(Ix**2 + Iy**2)
+    
+    # Sonucu 0 ile 1 arasında sınırlayarak döndür
+    return np.clip(J, 0, 1)
+
+
+# Türdeşlik (homojenlik) analizi yapar.
+# Her piksel için, çevresindeki piksellerle arasındaki mutlak parlaklık farkları hesaplanır ve en büyüğü seçilir.
+def turdeslik(I):
+    m = 1                   # Çevre pikseller için yarıçap (3x3 pencere)
+    H, W, C = I.shape       # Görüntü boyutları
+    J = np.zeros(I.shape)   # Sonuç görüntüsü
+    
+    # Görüntüdeki her piksel için
+    for y in range(H):
+        for x in range(W):
+            for c in range(C):
+                Imax = 0    # Maksimum farkı saklamak için başlangıç değeri
+                # Komşu pikselleri döngü ile kontrol et
+                for i in range(-m, m + 1):
+                    for j in range(-m, m + 1):
+                        # Geçerli komşunun görüntü sınırları içinde olup olmadığını kontrol et
+                        if 0 <= y - i < H and 0 <= x - j < W:
+                            Imax1 = abs(I[y - i, x - j, c] - I[y, x, c])
+                        else:
+                            Imax1 = abs(0 - I[y, x, c])
+                        
+                        # Hesaplanan fark, mevcut maksimumdan büyükse güncelle
+                        if Imax < Imax1:
+                            Imax = Imax1
+                            
+                # Piksel için en büyük fark değeri sonuç görüntüsüne atanır
+                J[y, x, c] = Imax
+    
+    # Sonuç değerlerini 0 ile 1 arasında sınırlayarak döndür
+    return np.clip(J, 0, 1)
+
+
+# Görüntüde farklılık analizi yapar.
+# Bir pikselin zıt komşu pikselleri arasındaki maksimum parlaklık farkını hesaplar.
+def farklilik(I):
+    m = 1                   # İncelenecek çevre yarıçapı (3x3 pencere)
+    H, W, C = I.shape       # Görüntü boyutları
+    J = np.zeros(I.shape)   # Sonuç görüntüsü
+    
+    # Her piksel için
+    for y in range(H):
+        for x in range(W):
+            for c in range(C):
+                Imax = 0    # Maksimum farkı saklamak için başlangıç değeri
+                # Çevredeki simetrik piksel çiftleriyle fark hesapla
+                for i in range(-m, m + 1):
+                    for j in range(-m, m + 1):
+                        # Hem (y-i, x-j) hem de simetrik karşıt piksel (y+i, x+j) görüntü sınırları içinde olmalı
+                        if (0 <= y - i < H and 0 <= x - j < W and 
+                            0 <= y + i < H and 0 <= x + j < W):
+                            Imax1 = abs(I[y - i, x - j, c] - I[y + i, x + j, c])
+                        else:
+                            Imax1 = 0
+                        
+                        # Eğer hesaplanan fark mevcut maksimumdan büyükse güncelle
+                        if Imax < Imax1:
+                            Imax = Imax1
+                
+                # En büyük fark değeri ilgili piksele atanır
+                J[y, x, c] = Imax
+    
+    # Sonuç değerlerini 0 ile 1 arasında sınırlayarak döndür
+    return np.clip(J, 0, 1)
+
+
+# Görüntüye ortanca (median) filtresi uygular.
+# Bu filtre, gürültüyü azaltmak için komşu piksellerin medyan değerini kullanır.
+# h: Filtre çekirdeği; a: Sınır durumlarında kullanılacak varsayılan değer.
+def ortanca(I, h, a=0):
+    M, _ = h.shape              # Çekirdeğin boyutunu al
+    m = (M - 1) // 2            # Çekirdek yarıçapını hesapla
+    H, W, C = I.shape           # Görüntü boyutları
+    J = np.zeros(I.shape)       # Sonuç görüntüsü
+    
+    # Her piksel ve her kanal için işlemi uygula
+    for y in range(H):
+        for x in range(W):
+            for c in range(C):
+                t = []          # Komşu piksellerin değerlerini tutacak liste
+                for i in range(-m, m + 1):
+                    for j in range(-m, m + 1):
+                        # Çekirdek öğesi True ise ilgili pikselleri dikkate al
+                        if h[i + m, j + m] == True:
+                            # Geçerli komşu pikseller görüntü sınırları içinde ise değeri ekle
+                            if 0 <= y - i < H and 0 <= x + j < W:
+                                t.append(I[y - i, x + j, c])
+                            else:
+                                t.append(a)  # Sınır dışı konumlarda varsayılan değer kullanılır
+                
+                # Komşu piksellerin medyan değeri hesaplanır ve ilgili piksele atanır
+                J[y, x, c] = np.median(t)
+    
+    # Sonuç değerlerini 0 ile 1 arasında sınırlayarak döndür
+    return np.clip(J, 0, 1)
+
+
+# Görüntüye sıralı filtre uygular.
+# Bu fonksiyon, belirli bir sıra (örneğin; minimum, maksimum veya k. sıradaki değer)
+# seçilerek gürültüyü azaltmak için kullanılır.
+# h: Filtre çekirdeği, a: Sınır durumları için kullanılacak değer, k: Seçilecek sıranın indeksi.
+def sirali(I, h, a=0, k=0):
+    M, _ = h.shape              # Çekirdeğin boyutunu al
+    m = (M - 1) // 2            # Çekirdek yarıçapını hesapla
+    H, W, C = I.shape           # Görüntü boyutları
+    J = np.zeros(I.shape)       # Sonuç görüntüsü
+    
+    # Her piksel ve her kanal için
+    for y in range(H):
+        for x in range(W):
+            for c in range(C):
+                t = []          # Komşu piksellerin değerlerini tutacak liste
+                for i in range(-m, m + 1):
+                    for j in range(-m, m + 1):
+                        # Çekirdekte belirtilen alan dahilinde True olan elemanlar için
+                        if h[i + m, j + m] == True:
+                            # Görüntü sınırları dahilindeyse piksellerin değeri eklenir
+                            if 0 <= y - i < H and 0 <= x + j < W:
+                                t.append(I[y - i, x + j, c])
+                            else:
+                                t.append(a)  # Sınır dışı konumlarda varsayılan değer eklenir
+                
+                # Listedeki değerlere göre sıralama yapılır ve k. sıradaki değer seçilir
+                J[y, x, c] = np.sort(t)[k]
+    
+    # Sonuç değerlerini 0 ile 1 arasında sınırlayarak döndür
+    return np.clip(J, 0, 1)
+
+                            
+                    </code>
+                </pre>
+        </div>
+    </div>
+    </div>
+</body>
+
+</html>
