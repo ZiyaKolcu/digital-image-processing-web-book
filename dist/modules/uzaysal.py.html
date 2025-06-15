@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uzaysal Module Fonksiyonları</title>
+    <link rel="icon" href="../favicon.ico" type="image/x-icon" />
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>
+        hljs.highlightAll();
+    </script>
+</head>
+
+<body class="bg-gray-900 text-white min-h-screen font-sans">
+    <div class="max-w-screen-xl mx-auto w-full">
+        <div class="bg-gray-800 rounded-xl shadow-md px-4">
+            <div class="flex items-center justify-between sticky top-0 z-50 bg-gray-800 py-4 shadow">
+                <h3 class="text-2xl font-semibold text-white border-gray-700">
+                    Uzaysal Module Fonksiyonları
+                </h3>
+                <a href="../index.html"
+                    class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition font-medium">
+                    Ana Sayfa
+                </a>
+            </div>
+            <pre class="rounded overflow-auto text-sm">
+<code id="code-block" class="language-python">
+import numpy as np
+import matplotlib.pyplot as plt
+import konumsal as ko  # Konumsal işlemler içeren yardımcı modül (kendi modülün)
+
+
+# Affine dönüşüm uygulayan fonksiyon
+def andıran(I, A):  # A: 3x3 affine dönüşüm matrisi
+    H, W, C = I.shape  # Görüntünün yüksekliği, genişliği ve kanal sayısı alınır
+    J = np.zeros((H, W, C))  # Çıktı görüntüsü sıfırlarla (siyah) başlatılır
+
+    ia = np.linalg.inv(A)  # Affine matrisinin tersi alınır (geri dönüşüm işlemi için)
+
+    # Çıktı görüntüsünün her pikseli için işlem yapılır
+    for v in range(H):  # Her satır için
+        for u in range(W):  # Her sütun için
+            # Giriş görüntüsündeki karşılık gelen (x, y) koordinatları affine dönüşümle hesaplanır
+            x = int(ia[0, 0] * u + ia[0, 1] * v + ia[0, 2])  # x koordinatı
+            y = int(ia[1, 0] * u + ia[1, 1] * v + ia[1, 2])  # y koordinatı
+
+            # Hesaplanan konum görüntü sınırları içindeyse piksel değeri aktarılır
+            if 0 <= x < W and 0 <= y < H:
+                J[v, u, :] = I[y, x, :]
+            else:
+                J[v, u, :] = [
+                    0,
+                    0,
+                    0,
+                ]  # Görüntü dışına taşan piksellere siyah renk verilir
+
+    return J  # Affine dönüşüm uygulanmış yeni görüntü döndürülür
+
+
+# 3 nokta eşleşmesinden affine dönüşüm matrisi hesaplayan fonksiyon
+def transform_matrix(xy, uv):
+    a = np.dot(
+        uv, np.linalg.inv(xy)
+    )  # Matris çarpımı ile affine dönüşüm matrisi elde edilir
+    return a  # Hesaplanan dönüşüm matrisi döndürülür
+    </code>
+                </pre>
+        </div>
+    </div>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Konumsal Module Fonksiyonları</title>
+    <link rel="icon" href="../favicon.ico" type="image/x-icon" />
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>
+        hljs.highlightAll();
+    </script>
+</head>
+
+<body class="bg-gray-900 text-white min-h-screen font-sans">
+    <div class="max-w-screen-xl mx-auto w-full">
+        <div class="bg-gray-800 rounded-xl shadow-md px-4">
+            <div class="flex items-center justify-between sticky top-0 z-50 bg-gray-800 py-4 shadow">
+                <h3 class="text-2xl font-semibold text-white border-gray-700">
+                    Konumsal Module Fonksiyonları
+                </h3>
+                <a href="../index.html"
+                    class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition font-medium">
+                    Ana Sayfa
+                </a>
+            </div>
+            <pre class="rounded overflow-auto text-sm">
+<code id="code-block" class="language-python">
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+# Görüntü üzerinde sabit renkle dış alanları doldurarak öteleme işlemi
+def oteleme(I, tx=0, ty=0):
+    H, W, C = I.shape  # Görüntü boyutları (yükseklik, genişlik, kanal sayısı)
+    J = np.zeros(I.shape)  # Yeni görüntüyü başlat
+
+    for v in range(H):
+        for u in range(W):
+            x = u - tx  # Yeni sütun konumu
+            y = v - ty  # Yeni satır konumu
+
+            if 0 <= x < W and 0 <= y < H:
+                J[v, u, :] = I[y, x, :]  # Geçerli pikseli taşı
+            else:
+                J[v, u, :] = [
+                    0.5,
+                    0.3,
+                    0.1,
+                ]  # Görüntü dışındaki alanlar için sabit bir renk uygula
+
+    return J
+
+
+# Görüntü dışında kalan pikselleri en yakın kenardaki piksel değeri ile tekrar et
+def oteleme_2(I, tx=0, ty=0):
+    H, W, C = I.shape
+    J = np.zeros(I.shape)
+
+    for v in range(H):
+        for u in range(W):
+            x = u - tx
+            y = v - ty
+
+            if 0 <= x < W and 0 <= y < H:
+                J[v, u, :] = I[y, x, :]
+            else:
+                x = int(np.clip(x, 0, W - 1))  # x değerini sınırlara sabitle
+                y = int(np.clip(y, 0, H - 1))  # y değerini sınırlara sabitle
+                J[v, u, :] = I[y, x, :]  # Kenar pikselleri tekrar et
+
+    return J
+
+
+# Görüntü dışında kalan pikselleri görüntü kenarına yansıtarak doldur
+def oteleme_3(I, tx=0, ty=0):
+    H, W, C = I.shape
+    J = np.zeros(I.shape)
+
+    for v in range(H):
+        for u in range(W):
+            x = u - tx
+            y = v - ty
+
+            if 0 <= x < W and 0 <= y < H:
+                J[v, u, :] = I[y, x, :]
+            else:
+                x = abs(x)  # Koordinat yansıtma (negatifse pozitif yap)
+                y = abs(y)
+                J[v, u, :] = I[
+                    y % H, x % W, :
+                ]  # Sınırların dışına çıkmamak için mod al
+
+    return J
+
+
+# Görüntü dışında kalan pikselleri sarmalama (wrap-around) yöntemiyle tekrar et
+def oteleme_4(I, tx=0, ty=0):
+    H, W, C = I.shape
+    J = np.zeros(I.shape)
+
+    for v in range(H):
+        for u in range(W):
+            x = (u - tx) % W  # Sarmal döndürme (wrap)
+            y = (v - ty) % H
+            J[v, u, :] = I[y, x, :]
+
+    return J
+
+
+# Görüntüyü verilen oranda ölçeklendir (yaklaştırma/uzaklaştırma)
+# En yakın komşu yöntemine göre yeniden boyutlandırma
+def olceklendirme(I, sx=1, sy=1):
+    Hi, Wi, C = I.shape
+    Hj = int(sy * Hi)
+    Wj = int(sx * Wi)
+    J = np.zeros((Hj, Wj, C))
+
+    for v in range(Hj):
+        for u in range(Wj):
+            x = int(np.round(u / sx))  # Orijinal görüntüdeki sütun
+            y = int(np.round(v / sy))  # Orijinal görüntüdeki satır
+
+            if 0 <= x < Wi and 0 <= y < Hi:
+                J[v, u, :] = I[y, x, :]  # En yakın komşudan al
+            else:
+                J[v, u, :] = [0.5, 0.3, 0.1]  # Görüntü dışı sabit renk
+
+    return J
+
+
+# Çift doğrusal içkestrim (bilinear interpolation) işlemi
+def cift_dogrusal(I, xx, yy):
+    ix = int(xx)
+    iy = int(yy)
+    dx = xx - ix
+    dy = yy - iy
+
+    # Dört komşu pikselin ağırlıklı ortalaması
+    I0 = (
+        (1 - dy) * (1 - dx) * I[iy, ix, :]
+        + (1 - dy) * dx * I[iy, ix + 1, :]
+        + dy * (1 - dx) * I[iy + 1, ix, :]
+        + dy * dx * I[iy + 1, ix + 1, :]
+    )
+    return I0
+
+
+# Çift doğrusal yöntemi kullanarak görüntüyü ölçeklendir
+def olceklendirme_2(I, sx=1, sy=1):
+    Hi, Wi, C = I.shape
+    Hj = int(sy * Hi)
+    Wj = int(sx * Wi)
+    J = np.zeros((Hj, Wj, C))
+
+    for v in range(Hj):
+        for u in range(Wj):
+            xx = u / sx
+            yy = v / sy
+
+            if 0 <= xx < Wi - 1 and 0 <= yy < Hi - 1:
+                J[v, u, :] = cift_dogrusal(I, xx, yy)
+            else:
+                J[v, u, :] = [0.5, 0.3, 0.1]  # Dış bölge sabit renk
+
+    return J
+
+
+# Görüntüyü orijinden (0,0) itibaren döndür (derece cinsinden)
+def dondurme(I, A=0):
+    H, W, C = I.shape
+    J = np.zeros((H, W, C))
+    a = A / 180 * np.pi  # Radyana çevir
+
+    for v in range(W):
+        for u in range(H):
+            x = int(u * np.cos(a) + v * np.sin(a))
+            y = int(-u * np.sin(a) + v * np.cos(a))
+
+            if 0 <= x < W and 0 <= y < H:
+                J[v, u, :] = I[y, x, :]
+            else:
+                J[v, u, :] = [0, 0, 0]  # Dış piksel siyah
+
+    return J
+
+
+# Görüntüyü merkez etrafında döndür
+def dondurme_2(I, A=0):
+    H, W, C = I.shape
+    J = np.zeros((H, W, C))
+    a = A / 180 * np.pi
+    x0 = W / 2
+    y0 = H / 2
+
+    for v in range(W):
+        for u in range(H):
+            x = int((u - x0) * np.cos(a) + (v - y0) * np.sin(a) + x0)
+            y = int(-(u - x0) * np.sin(a) + (v - y0) * np.cos(a) + y0)
+
+            if 0 <= x < W and 0 <= y < H:
+                J[v, u, :] = I[y, x, :]
+            else:
+                J[v, u, :] = [0, 0, 0]
+
+    return J
+
+
+# Belirtilen (x0, y0) noktası etrafında döndür
+def dondurme_3(I, A=0, x0=0, y0=0):
+    H, W, C = I.shape
+    J = np.zeros((H, W, C))
+    a = A / 180 * np.pi
+
+    for v in range(W):
+        for u in range(H):
+            x = int((u - x0) * np.cos(a) + (v - y0) * np.sin(a) + x0)
+            y = int(-(u - x0) * np.sin(a) + (v - y0) * np.cos(a) + y0)
+
+            if 0 <= x < W and 0 <= y < H:
+                J[v, u, :] = I[y, x, :]
+            else:
+                J[v, u, :] = [0, 0, 0]
+
+    return J
+
+
+# Görüntüyü belirli eksen etrafında çevir (ayna simetrisi)
+# axis=0 -> yatay eksende çevirme
+# axis=1 -> dikey eksende çevirme
+def cevirme(I, axis=0):
+    H, W, C = I.shape
+    J = np.zeros((H, W, C))
+
+    for v in range(W):
+        for u in range(H):
+            if axis == 0:
+                x = u
+                y = H - 1 - v
+            else:
+                x = W - 1 - u
+                y = v
+            if 0 <= x < W and 0 <= y < H:
+                J[v, u, :] = I[y, x, :]
+            else:
+                J[v, u, :] = [0, 0, 0]
+
+    return J
+
+
+# Görüntünün belirli bir dikdörtgen bölgesini kırpar
+def kirpma(I, x1=0, y1=0, x2=0, y2=0):
+    Hi, Wi, C = I.shape
+    Hj = y2 - y1
+    Wj = x2 - x1
+
+    J = np.zeros((Hj, Wj, C))
+    for v in range(Hj):
+        for u in range(Wj):
+            x = x1 + u
+            y = y1 + v
+            J[v, u, :] = I[y, x, :]
+
+    return J
+
+
+# Görüntüyü belirli bir yönde eğme (shear transform)
+# kx: x yönünde eğme katsayısı, ky: y yönünde eğme katsayısı
+def egme(I, kx=0, ky=0):
+    H, W, C = I.shape
+    J = np.zeros((H, W, C))
+
+    for v in range(H):
+        for u in range(W):
+            x = int(u + kx * v)
+            y = int(v + ky * u)
+
+            if 0 <= x < W and 0 <= y < H:
+                J[v, u, :] = I[y, x, :]
+            else:
+                J[v, u, :] = [0, 0, 0]
+
+    return J
+    </code>
+                </pre>
+        </div>
+    </div>
+    </div>
+</body>
+
+</html>

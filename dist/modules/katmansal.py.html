@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Katmansal Module Fonksiyonları</title>
+    <link rel="icon" href="../favicon.ico" type="image/x-icon" />
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>
+        hljs.highlightAll();
+    </script>
+</head>
+
+<body class="bg-gray-900 text-white min-h-screen font-sans">
+    <div class="max-w-screen-xl mx-auto w-full">
+        <div class="bg-gray-800 rounded-xl shadow-md px-4">
+            <div class="flex items-center justify-between sticky top-0 z-50 bg-gray-800 py-4 shadow">
+                <h3 class="text-2xl font-semibold text-white border-gray-700">
+                    Katmansal Module Fonksiyonları
+                </h3>
+                <a href="../index.html"
+                    class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition font-medium">
+                    Ana Sayfa
+                </a>
+            </div>
+            <pre class="rounded overflow-auto text-sm">
+<code id="code-block" class="language-python">
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+# İki görüntüyü alfa değeri ile üst üste bindirir
+def ust_uste(I1, I2, a=0):
+    J = I1 * a + (1 - a) * I2
+    return J
+
+
+# Soldan sağa doğru geçişli birleştirme uygular
+def gecisli_birlestirme(I1, I2):
+    H, W, C = I1.shape  # Yükseklik, genişlik ve kanal sayısını al
+    J = np.zeros(I1.shape)  # Çıktı görüntüsünü başlat
+
+    for y in range(H):
+        for x in range(W):
+            f = x / (W - 1)  # X konumuna bağlı ağırlık
+            J[y, x, :] = I1[y, x, :] * (1 - f) + f * I2[y, x, :]  # Karışım yap
+
+    return J
+
+
+# Satranç tahtası benzeri birleştirme (geçmeli)
+def gecmeli_birlestirme(I1, I2, dx=1, dy=1):
+    H, W, C = I1.shape
+    J = np.zeros(I1.shape)
+
+    for y in range(H):
+        for x in range(W):
+            Y = y // dx
+            X = x // dy
+
+            # X+Y çiftse I1, tekse I2'den piksel al
+            if ((-1) ** (X + Y)) == 1:
+                J[y, x, :] = I1[y, x, :]
+            else:
+                J[y, x, :] = I2[y, x, :]
+
+    return J
+
+
+# Ortalama eşleme (histogram kaydırma)
+def ortalama_esleme(I1, I2):
+    J = I2.copy()
+    m1 = np.mean(I1)  # I1'in ortalaması
+    m2 = np.mean(I2)  # I2'nin ortalaması
+
+    J = (I2 - m2) + m1  # Ortalama kaydırması
+
+    return np.clip(J, 0, 1)  # 0-1 aralığına sınırla
+
+
+# Ortalama ve standart sapmaya göre eşleme
+def parametre_esleme(I1, I2):
+    J = I2.copy()
+    m1 = np.mean(I1)
+    s1 = np.std(I1)
+    m2 = np.mean(I2)
+    s2 = np.std(I2)
+
+    # Normalize et, sonra yeniden ölçekle
+    J = ((I2 - m2) / s2) * s1 + m2
+
+    return np.clip(J, 0, 1)
+
+
+# Görüntü yoğunluk dönüşümünü LUT ile uygular
+def yogunluk_donusumu(I1, I2, LUT):
+    # I1 ve I2'deki piksellere göre LUT'dan değer çek
+    J = LUT[np.int32(I1 * 255), np.int32(I2 * 255)]
+    return J
+
+
+# LUT oluşturur, türüne göre farklı işlemler içerir
+def lut(tur=0):
+    LUT = np.zeros([256, 256])  # 256x256 boyutlu LUT tablosu
+
+    if tur == 0:  # Etkisiz
+        for i in range(256):
+            for j in range(256):
+                LUT[j, j] = i / 255
+
+    elif tur == 1:  # Yutan (sadece j etkili)
+        for i in range(256):
+            for j in range(256):
+                LUT[i, j] = j / 255
+
+    elif tur == 2:  # Karartma (minimumu al)
+        for i in range(256):
+            for j in range(256):
+                if i < j:
+                    LUT[i, j] = i / 255
+                else:
+                    LUT[i, j] = j / 255
+
+    elif tur == 3:  # Aydınlatma (maksimumu al)
+        for i in range(256):
+            for j in range(256):
+                if i > j:
+                    LUT[i, j] = i / 255
+                else:
+                    LUT[i, j] = j / 255
+
+    elif tur == 4:  # Ve (bit düzeyinde ve işlemi)
+        for i in range(256):
+            for j in range(256):
+                LUT[i, j] = i & j
+
+    elif tur == 5:  # Çarpma
+        for i in range(256):
+            for j in range(256):
+                LUT[i, j] = i / 255 * j / 255
+
+    return np.clip(LUT, 0, 1)  # Değerleri 0-1 aralığına sınırla
+
+
+# Bir daire içinde I1, dışında I2 görüntüsünü kullanır
+def ornek_1(I1, I2):
+    H, W, C = I1.shape
+    J = np.zeros(I1.shape)
+
+    x0, y0 = W // 2, H // 2  # Görüntü merkezini bul
+    R = W // 3  # Yarıçap belirle
+
+    for y in range(H):
+        for x in range(W):
+            r = np.sqrt((x - x0) ** 2 + (y - y0) ** 2)  # Merkeze uzaklık
+
+            if r < R:
+                J[y, x, :] = I1[y, x, :]
+            else:
+                J[y, x, :] = I2[y, x, :]
+
+    return np.clip(J, 0, 1)
+
+
+# Y < X ise I1, aksi halde I2'yi kullanır (çapraz bölme)
+def ornek_2(I1, I2):
+    H, W, C = I1.shape
+    J = np.zeros(I1.shape)
+
+    for y in range(H):
+        for x in range(W):
+            if y < x:
+                J[y, x, :] = I1[y, x, :]
+            else:
+                J[y, x, :] = I2[y, x, :]
+
+    return np.clip(J, 0, 1)
+
+
+# Görüntüyü belirli bir satıra kadar I1, sonra I2 olarak birleştirir
+def ornek_3(I1, I2, k=0):
+    H, W, C = I1.shape
+    J = np.zeros(I1.shape)
+
+    for y in range(H):
+        for x in range(W):
+            if y < k:
+                J[y, x, :] = I1[y, x, :]
+            else:
+                J[y, x, :] = I2[y, x, :]
+
+    return J
+
+
+# Açısal bölme: Belirli bir açıdan küçükse I1, değilse I2
+def ornek_4(I1, I2, T=0):
+    H, W, C = I1.shape
+    J = np.zeros(I1.shape)
+
+    x0, y0 = W // 2, H // 2  # Görüntü merkezi
+
+    for y in range(H):
+        for x in range(W):
+            t = np.arctan2(y - y0, x - x0)
+            if t < T:
+                J[y, x, :] = I1[y, x, :]
+            else:
+                J[y, x, :] = I2[y, x, :]
+
+    return np.clip(J, 0, 1)
+
+
+# M maskesine göre I1 veya I2'yi seçer
+def ornek_5(I1, I2, M):
+    H, W, C = I1.shape
+    J = np.zeros(I1.shape)
+
+    for y in range(H):
+        for x in range(W):
+            if M[y, x] == 1:
+                J[y, x, :] = I1[y, x, :]
+            else:
+                J[y, x, :] = I2[y, x, :]
+
+    return np.clip(J, 0, 1)
+
+
+# Açısal karışım: Pikselin merkezden olan açısına göre ağırlıklı birleştirme
+def ornek_6(I1, I2):
+    H, W, C = I1.shape
+    J = np.zeros(I1.shape)
+
+    x0, y0 = W // 2, H // 2  # Görüntü merkezi
+
+    for y in range(H):
+        for x in range(W):
+            t = np.arctan2(y - y0, x - x0) / (2 * np.pi) + 0.5  # Açıdan ağırlık üret
+            J[y, x, :] = I1[y, x, :] * t + (1 - t) * I2[y, x, :]
+
+    return np.clip(J, 0, 1)
+    </code>
+                </pre>
+        </div>
+    </div>
+    </div>
+</body>
+
+</html>

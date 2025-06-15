@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toplamsal Module Fonksiyonları</title>
+    <link rel="icon" href="../favicon.ico" type="image/x-icon" />
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>
+        hljs.highlightAll();
+    </script>
+</head>
+
+<body class="bg-gray-900 text-white min-h-screen font-sans">
+    <div class="max-w-screen-xl mx-auto w-full">
+        <div class="bg-gray-800 rounded-xl shadow-md px-4">
+            <div class="flex items-center justify-between sticky top-0 z-50 bg-gray-800 py-4 shadow">
+                <h3 class="text-2xl font-semibold text-white border-gray-700">
+                    Toplamsal Module Fonksiyonları
+                </h3>
+                <a href="../index.html"
+                    class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition font-medium">
+                    Ana Sayfa
+                </a>
+            </div>
+            <pre class="rounded overflow-auto text-sm">
+<code id="code-block" class="language-python">
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+# Görüntüyü merkez etrafında verilen açı kadar döndürme işlemi
+def dondurme_2(I, A=0):
+    H, W = I.shape  # Görüntünün yüksekliği (H) ve genişliği (W) alınır
+    J = np.zeros(
+        (H, W)
+    )  # Aynı boyutta sıfırlarla dolu yeni bir çıktı görüntüsü oluşturulur
+    a = A / 180 * np.pi  # Derece cinsinden verilen açı, radyan cinsine çevrilir
+    x0 = W / 2  # Görüntü merkezinin x koordinatı
+    y0 = H / 2  # Görüntü merkezinin y koordinatı
+
+    # Her bir çıktı pikseli için işlemler yapılır
+    for v in range(W):  # Genişlik boyunca
+        for u in range(H):  # Yükseklik boyunca
+            # Geriye doğru dönüşüm uygulanır: Çıktı pikselinin orijinal konumda karşılığı hesaplanır
+            x = int((u - x0) * np.cos(a) + (v - y0) * np.sin(a) + x0)
+            y = int(-(u - x0) * np.sin(a) + (v - y0) * np.cos(a) + y0)
+
+            # Hesaplanan x ve y koordinatları görüntü sınırları içinde ise piksel değeri atanır
+            if 0 <= x < W and 0 <= y < H:
+                J[v, u] = I[y, x]
+            else:
+                J[v, u] = (
+                    0  # Görüntü dışına taşan pikseller sıfır (siyah) ile doldurulur
+                )
+
+    return J
+
+
+# Radon dönüşümü: Her açı için döndürülmüş görüntü üzerinden y ekseni boyunca projeksiyon alınır
+def radon(I):
+    H, W = I.shape  # Giriş görüntüsünün boyutları
+    J = np.zeros((H, 180))  # Her derece (0–179) için bir projeksiyon sütunu tutulur
+
+    for t in range(180):  # 0'dan 179 dereceye kadar döner
+        I1 = dondurme_2(I, t)  # Görüntüyü t derece döndür
+        J[:, t] = np.sum(
+            I1, axis=1
+        )  # Her satırdaki (y ekseni) piksel değerlerini topla ve sütun olarak yaz
+
+    return J  # Dönüşüm sonucu elde edilen sinogram (Radon uzayı)
+
+
+# Hough doğrusal dönüşümü: Görüntüdeki piksellerin, her açı için hangi doğrulara düştüğü hesaplanır
+def hough_line(I):
+    H, W = I.shape  # Görüntü boyutları alınır
+    x0, y0 = W / 2, H / 2  # Görüntünün merkez koordinatları belirlenir
+    R = int(
+        np.sqrt(H**2 + W**2)
+    )  # Maksimum olası uzaklık (hipotenüs) hesaplanır, rho (r) aralığı için
+
+    J = np.zeros((R, 180))  # Hough uzayını temsil edecek çıktı matrisi (r, theta)
+
+    # Görüntüdeki her piksel için işlem yapılır
+    for y in range(H):  # Tüm satırlar boyunca
+        for x in range(W):  # Tüm sütunlar boyunca
+            if (
+                I[y, x] == 1
+            ):  # Sadece kenar (beyaz) pikseller dikkate alınır (örneğin edge detection sonrası)
+                for t in range(180):  # 0'dan 179 dereceye kadar tüm açılar denenir
+                    a = t / 180 * np.pi  # Açı radyana çevrilir
+                    # Her (x,y) noktası için ilgili açıya göre r değeri hesaplanır
+                    r = int((x - x0) * np.cos(a) + (y - y0) * np.sin(a) + R / 2)
+                    # Elde edilen (r, t) koordinatında bir oy (accumulator) arttırılır
+                    J[r, t] += 1
+
+    return J  # Hough uzayı (accumulator matrix) döndürülür
+    </code>
+                </pre>
+        </div>
+    </div>
+    </div>
+</body>
+
+</html>
